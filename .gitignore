@@ -1,0 +1,4 @@
+__pycache__
+totpy/__pycache__
+.env
+users.db
