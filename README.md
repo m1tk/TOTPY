@@ -1,6 +1,6 @@
 # TOTPLY
 
-A toy authentication interface with TOTP MFA authentication implementation
+A toy authentication interface with TOTP MFA implementation
 
 # Running
 
