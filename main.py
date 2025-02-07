@@ -1,17 +1,20 @@
-from flask import render_template_string, request, redirect, session, url_for, flash
+from flask import Flask, render_template, request, redirect, session, url_for, flash
 from werkzeug.security import generate_password_hash, check_password_hash
 from totpy import TOTPAuthenticator
 import io
 import base64
 
+# Import the app and database functions
 from app import app
 from db import get_db, init_db
 
 @app.route('/')
 def index():
     if session.get('username'):
-        return f"Hello, {session['username']}! You are logged in. <br><a href='/logout'>Logout</a>"
-    return "Welcome! <a href='/signup'>Signup</a> or <a href='/login'>Login</a>"
+        return render_template('index.html', username=session['username'])
+    return render_template('index.html')
+
+from urllib.parse import urlparse, parse_qs
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -25,7 +28,7 @@ def signup():
         # Check if the username already exists
         cursor.execute('SELECT id FROM users WHERE username = ?', (username,))
         if cursor.fetchone():
-            flash("Username already exists!")
+            flash("Username already exists!", "danger")
             return redirect(url_for('signup'))
 
         # Generate a new TOTP secret for the user
@@ -39,36 +42,27 @@ def signup():
         )
         db.commit()
 
-        provisioning_uri    = totpy.provisioning_uri(username, app.app_name)
+        # Generate TOTP provisioning URI and QR code
+        provisioning_uri = totpy.provisioning_uri(username, app.app_name)
         qr_provisioning_uri = totpy.provisioning_uri_qr_code(username, app.app_name)
         img_io = io.BytesIO()
         qr_provisioning_uri.save(img_io, 'PNG')
         img_io.seek(0)
         qr_code = base64.b64encode(img_io.getvalue()).decode('utf-8')
 
-        return render_template_string('''
-            <h2>Signup Successful!</h2>
-            <p>Scan this URL with your authenticator app (e.g., Google Authenticator):</p>
-            <p><a href="{{ provisioning_uri }}">{{ provisioning_uri }}</a></p>
-            <img src="data:image/png;base64,{{ qr_code }}" alt="QR Code">
-            <p>Then <a href="{{ url_for('login') }}">login</a>.</p>
-        ''', provisioning_uri=provisioning_uri, qr_code=qr_code)
+        # Extract the secret key from the provisioning URI
+        parsed_url = urlparse(provisioning_uri)
+        query_params = parse_qs(parsed_url.query)
+        secret_key = query_params.get('secret', [''])[0]
 
-    return render_template_string('''
-        <h2>Signup</h2>
-        <form method="post">
-            Username: <input type="text" name="username" required><br>
-            Password: <input type="password" name="password" required><br>
-            <input type="submit" value="Sign Up">
-        </form>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <p class="{{ category }}">{{ message }}</p>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    ''')
+        # Remove padding characters from the secret key
+        secret_key = secret_key.rstrip('=')
+
+        # Render the signup success page with the QR code and secret key
+        return render_template('signup.html', provisioning_uri=provisioning_uri, qr_code=qr_code, secret_key=secret_key)
+
+    # Render the signup form for GET requests
+    return render_template('signup.html')
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -81,34 +75,21 @@ def login():
         cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
         user = cursor.fetchone()
         if not user or not check_password_hash(user['password_hash'], password):
-            flash("Invalid username or password!")
+            flash("Invalid username or password!", "danger")
             return redirect(url_for('login'))
 
         # Store username in session temporarily before MFA
         session['pre_2fa_username'] = username
         return redirect(url_for('mfa'))
 
-    return render_template_string('''
-        <h2>Login</h2>
-        <form method="post">
-            Username: <input type="text" name="username" required><br>
-            Password: <input type="password" name="password" required><br>
-            <input type="submit" value="Login">
-        </form>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <p class="{{ category }}">{{ message }}</p>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    ''')
+    # Render the login form for GET requests
+    return render_template('login.html')
 
 @app.route('/mfa', methods=['GET', 'POST'])
 def mfa():
     username = session.get('pre_2fa_username')
     if not username:
-        flash("Session expired. Please login again.")
+        flash("Session expired. Please login again.", "danger")
         return redirect(url_for('login'))
 
     db = get_db()
@@ -116,7 +97,7 @@ def mfa():
     cursor.execute('SELECT * FROM users WHERE username = ?', (username,))
     user = cursor.fetchone()
     if not user:
-        flash("User not found!")
+        flash("User not found!", "danger")
         return redirect(url_for('login'))
 
     if request.method == 'POST':
@@ -127,30 +108,16 @@ def mfa():
             session['username'] = username
             return redirect(url_for('index'))
         else:
-            flash("Invalid token! Please try again.")
+            flash("Invalid token! Please try again.", "danger")
             return redirect(url_for('mfa'))
 
-    return render_template_string('''
-        <h2>MFA Verification</h2>
-        <p>Please enter the 6-digit code from your authenticator app.</p>
-        <form method="post">
-            TOTP Code: <input type="text" name="token" required><br>
-            <input type="submit" value="Verify">
-        </form>
-        {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-                {% for category, message in messages %}
-                    <p class="{{ category }}">{{ message }}</p>
-                {% endfor %}
-            {% endif %}
-        {% endwith %}
-    ''')
+    # Render the MFA verification form for GET requests
+    return render_template('mfa.html')
 
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('index'))
-
 
 if __name__ == '__main__':
     init_db()
