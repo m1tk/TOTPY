@@ -29,7 +29,8 @@ def init_db():
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,
                 password_hash TEXT NOT NULL,
-                totp_secret TEXT NOT NULL
+                totp_secret TEXT NOT NULL,
+                phone TEXT
             )
         ''')
         db.commit()

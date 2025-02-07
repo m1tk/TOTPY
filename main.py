@@ -3,6 +3,8 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from totpy import TOTPAuthenticator
 import io
 import base64
+import secrets
+import requests
 
 # Import the app and database functions
 from app import app
@@ -21,6 +23,7 @@ def signup():
     if request.method == 'POST':
         username = request.form.get('username').strip()
         password = request.form.get('password').strip()
+        phone    = request.form.get('phone', '').strip() or None
 
         db = get_db()
         cursor = db.cursor()
@@ -37,8 +40,8 @@ def signup():
         # Create a new user record
         password_hash = generate_password_hash(password)
         cursor.execute(
-            'INSERT INTO users (username, password_hash, totp_secret) VALUES (?, ?, ?)',
-            (username, password_hash, totpy.get_secret())
+            "INSERT INTO users (username, password_hash, totp_secret, phone) VALUES (?, ?, ?, ?)",
+            (username, password_hash, totpy.get_secret(), phone)
         )
         db.commit()
 
@@ -80,13 +83,49 @@ def login():
 
         # Store username in session temporarily before MFA
         session['pre_2fa_username'] = username
-        return redirect(url_for('mfa'))
+        return redirect(url_for('mfa_choice'))
 
     # Render the login form for GET requests
     return render_template('login.html')
 
-@app.route('/mfa', methods=['GET', 'POST'])
-def mfa():
+@app.route('/mfa_choice', methods=['GET', 'POST'])
+def mfa_choice():
+    username = session.get('pre_2fa_username')
+    if not username:
+        flash("Session expired. Please login again.")
+        return redirect(url_for('login'))
+    
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+    user = cursor.fetchone()
+
+    if request.method == 'POST':
+        method = request.form.get('method')
+        if method == 'totp':
+            return redirect(url_for('mfa_totp'))
+        elif method == 'sms':
+            if not user['phone']:
+                flash("SMS MFA is not available because phone number was not provided in signup.", "danger")
+                return redirect(url_for('mfa_choice'))
+            # Generate a random 6-digit code for SMS
+            sms_code = str(secrets.randbelow(900000) + 100000)
+            session['sms_code'] = sms_code
+            try:
+                send_sms(user['phone'], sms_code)
+            except Exception as e:
+                print(e)
+                flash("SMS MFA service is not available, please try later.", "danger")
+                return redirect(url_for('mfa_choice'))
+            return redirect(url_for('mfa_sms'))
+        else:
+            flash("Invalid MFA method selected.")
+            return redirect(url_for('mfa_choice'))
+    
+    return render_template('mfa_choice.html')
+
+@app.route('/mfa_totp', methods=['GET', 'POST'])
+def mfa_totp():
     username = session.get('pre_2fa_username')
     if not username:
         flash("Session expired. Please login again.", "danger")
@@ -112,7 +151,42 @@ def mfa():
             return redirect(url_for('mfa'))
 
     # Render the MFA verification form for GET requests
-    return render_template('mfa.html')
+    return render_template('mfa_totp.html')
+
+def send_sms(phone, otp):
+    print(f"code: {otp}")
+    payload = {
+        'message': f"TOTPY authentication passcode: {otp}",
+        'phoneNumbers': [phone]
+    }
+
+    response = requests.post(app.smsgate_server + "/message", auth=app.smsgate_creds, json=payload)
+    # Check if the request was successful
+    if response.status_code != 202:
+        raise Exception()
+
+@app.route('/mfa_sms', methods=['GET', 'POST'])
+def mfa_sms():
+    username = session.get('pre_2fa_username')
+    if not username:
+        flash("Session expired. Please login again.")
+        return redirect(url_for('login'))
+
+    if request.method == 'POST':
+        code = request.form.get('code').strip()
+        if 'sms_code' not in session:
+            flash("SMS code expired or not set.", "danger")
+            return redirect(url_for('mfa_choice'))
+        if code == session.get('sms_code'):
+            session.pop('pre_2fa_username', None)
+            session.pop('sms_code', None)
+            session['username'] = username
+            return redirect(url_for('index'))
+        else:
+            flash("Invalid SMS code. Please try again.", "danger")
+            return redirect(url_for('mfa_sms'))
+
+    return render_template("mfa_sms.html")
 
 @app.route('/logout')
 def logout():
@@ -122,3 +196,4 @@ def logout():
 if __name__ == '__main__':
     init_db()
     app.run(debug=True)
+

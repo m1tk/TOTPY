@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container d-flex justify-content-center align-items-center" style="min-height: 70vh;">
+    <div class="card shadow-lg p-4" style="width: 100%; max-width: 400px;">
+        <div class="card-body">
+            <h2 class="card-title text-center mb-4">MFA</h2>
+            <p class="text-center">Select available MFA method for verification.</p>
+            <form method="post">
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="method" value="totp" id="totp" required>
+                        <label class="form-check-label" for="totp">TOTP (Authenticator App)</label><br>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="method" value="sms" id="sms" required>
+                        <label class="form-check-label" for="sms">SMS</label><br>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Continue</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
