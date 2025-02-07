@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block content %}
+    <div class="container d-flex justify-content-center align-items-center" style="min-height: 70vh;">
+        <div class="card shadow-lg p-4" style="width: 100%; max-width: 400px;">
+            <div class="card-body">
+                {% if qr_code %}
+                    <h2 class="card-title text-center mb-4">Signup Successful!</h2>
+                    <p class="text-center">Scan the QR code below with your authenticator app:</p>
+                    <div class="text-center mb-3">
+                        <img src="data:image/png;base64,{{ qr_code }}" 
+                             alt="QR Code" 
+                             class="img-fluid qr-protected" 
+                             oncontextmenu="return false;" 
+                             draggable="false">
+                    </div>
+                    <p class="text-center">Or manually enter this key:</p>
+                    <div class="text-center mb-3">
+                        <code>{{ secret_key }}</code>
+                    </div>
+                    <p class="text-center mt-3">After setting up, <a href="/login">login here</a>.</p>
+                {% else %}
+                    <h2 class="card-title text-center mb-4">Signup</h2>
+                    <form method="post">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="password" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="password" name="password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">Sign Up</button>
+                    </form>
+                    <p class="text-center mt-3">Already have an account? <a href="/login">Login here</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <style>
+        .qr-protected {
+            pointer-events: none;
+            user-select: none;
+        }
+    </style>
+{% endblock %}

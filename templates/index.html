@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container d-flex flex-column justify-content-start align-items-center mt-5">
+    <div class="text-center">
+        <h1 class="display-4 mb-4">Welcome to <img src="{{ url_for('static', filename='img/logo2.png') }}" alt="TOTpy"
+                height="90">
+        </h1>
+        {% if session.username %}
+        <p class="lead">Hello, <span class="text-success">{{ session.username }}</span>! You are logged in.</p>
+        <a href="/logout" class="btn btn-danger btn-lg">Logout</a>
+        {% else %}
+        <p class="lead">Please log in or sign up to continue.</p>
+        <div class="mt-4">
+            <a href="/login" class="btn btn-primary btn-lg me-3">Login</a>
+            <a href="/signup" class="btn btn-success btn-lg">Signup</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+<style>
+    /* Custom styles for the index page */
+    .container {
+        max-width: 800px;
+    }
+
+    .display-4 {
+        font-weight: bold;
+    }
+
+    .lead {
+        font-size: 1.25rem;
+        color: #6c757d;
+        /* Bootstrap's secondary text color */
+    }
+
+    /* Adjust the top margin for better alignment */
+    .mt-5 {
+        margin-top: 3rem !important;
+    }
+</style>
