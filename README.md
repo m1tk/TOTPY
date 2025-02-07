@@ -38,7 +38,7 @@ Install the required Python packages using pip:
 pip install -r requirements.txt
 ```
 
-For SMS authentication we rely on (SMSGATE)[https://github.com/capcom6/android-sms-gateway] on an android device
+For SMS authentication we rely on [SMSGATE](https://github.com/capcom6/android-sms-gateway) on an android device
 
 ### 3. Configure the Environment
 
