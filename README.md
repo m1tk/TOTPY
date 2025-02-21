@@ -27,8 +27,8 @@ Before running the project, ensure you have the following installed:
 First, clone the repository to your local machine:
 
 ```bash
-git clone https://github.com/MALTOisHERE/TOTpy.git
-cd TOTpy
+git clone https://github.com/m1tk/TOTPY.git
+cd TOTPY
 ```
 ### 2. Install Dependencies
 
@@ -72,7 +72,7 @@ The application should now be running at ```http://127.0.0.1:5000/```.
 ## Project Structure
 
 ```
-TOTpy/
+TOTPY/
 ├── main.py                # Entry point for the Flask application
 ├── requirements.txt       # List of Python dependencies
 ├── .env                   # Environment variables (e.g., secret key)
